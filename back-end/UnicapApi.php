@@ -58,7 +58,74 @@ Class UnicapApi {
     }
 
     public function getLivros($cookie){
+        $this->cookie = $cookie;
+        $header = array ('Content-Type: application/x-www-form-urlencoded','Referer: https://www1.unicap.br/pergamum3/Pergamum/biblioteca_s/meu_pergamum/emp_renovacao.php','Cookie: '.$this->cookie);
+        $result = $this->request("https://www1.unicap.br/pergamum3/Pergamum/biblioteca_s/meu_pergamum/emp_renovacao.php","",$header,"GET");
+        $dom = new DOMDocument();
+        $dom->loadHTML(mb_convert_encoding($result->response, 'HTML-ENTITIES', 'UTF-8'));
+        $tds = $dom->getElementsByTagName('td');
+        $cod_livros = array();
+        $livros = array();
+        $data_entrega = array();
+        foreach ($tds as $td) {
+            if ($td->getAttribute('class') == "box_write_left"){
+                array_push($cod_livros,$td->nodeValue);
+            }
+        }
+        array_shift($cod_livros);
         
+        foreach ($tds as $td) {
+            if ($td->getAttribute('class') == "box_azul_left"){
+                array_push($livros,$td->nodeValue);
+            }
+        }
+        array_shift($livros);
+        
+        foreach ($tds as $td) {
+            if ($td->getAttribute('class') == "box_write_c"){
+                array_push($data_entrega,$td->nodeValue);
+            }
+        }
+        array_shift($data_entrega);
+
+        $cod_livros_data = array();
+        for($i=0;$i<count($cod_livros);$i++){
+            $aux = array(
+                "id" => $cod_livros[$i],
+                "livro" => $livros[$i],
+                "data" => $data_entrega[$i]
+            );
+            array_push($cod_livros_data,$aux);
+        }
+        return json_encode($cod_livros_data);
+    }
+
+    public function renovaLivrosByCod($cod,$matricula,$cookie){
+
+        $this->cookie = $cookie;
+        $header = array ('Content-Type: application/x-www-form-urlencoded','Referer: https://www1.unicap.br/pergamum3/Pergamum/biblioteca_s/meu_pergamum/emp_renovacao.php','Cookie: '.$this->cookie);
+
+        $data = http_build_query(
+            array(
+                'renova' => 'renovar',
+                'Selecs' => "$cod@#1@#1;",
+                'acao' => 'clicou',
+                'codigoreduzido_anterior' => "$matricula",
+                'check_1' => "$cod@#1@#1;",
+                'data_pesquisa_inicial' => "dd%2Fmm%2Faaaa",
+                'data_pesquisa_final' => "dd%2Fmm%2Faaaa"
+
+            )
+        );
+        $result = $this->request("https://www1.unicap.br/pergamum3/Pergamum/biblioteca_s/meu_pergamum/emp_renovacao.php",$data,$header,"POST");
+        print_r($result->response);
+
+    }
+
+    private function getTextBetweenTags($string, $tagname){
+        $pattern = "/<$tagname?.*>(.*)<\/$tagname>/";
+        preg_match($pattern, $string, $matches);
+        return $matches;
     }
 
     private function request($url,$data,$headers,$type){
